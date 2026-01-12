@@ -803,5 +803,165 @@ void main() {
         client.disconnect();
       });
     });
+
+    group('Null Safety Tests', () {
+      late MockWebSocketChannel mockChannel;
+      late MockWebSocketSink mockSink;
+      late StreamController<dynamic> streamController;
+
+      setUp(() {
+        mockChannel = MockWebSocketChannel();
+        mockSink = MockWebSocketSink();
+        streamController = StreamController<dynamic>.broadcast();
+
+        when(mockChannel.stream).thenAnswer((_) => streamController.stream);
+        when(mockChannel.sink).thenReturn(mockSink);
+      });
+
+      tearDown(() {
+        streamController.close();
+      });
+
+      test('handles null values in message fields gracefully - no crash', () async {
+        // Arrange
+        final client = createClient();
+        await client.connect();
+
+        // Act - Send message with null data field (would crash before fix with "type 'Null' is not a subtype of type 'String'")
+        final messageWithNull = jsonEncode({'event': 'pusher:connection_established', 'data': null});
+
+        // Assert - Should not throw/crash
+        expect(() {
+          streamController.add(messageWithNull);
+        }, returnsNormally);
+
+        await Future.delayed(Duration(milliseconds: 50));
+        client.disconnect();
+      });
+
+      test('handles null data in subscription message - no crash', () async {
+        // Arrange
+        final client = createClient();
+        await client.connect();
+
+        // Act - Send subscription message with null data (would crash before fix)
+        final messageWithNull = jsonEncode({'event': 'pusher_internal:subscription_succeeded', 'data': null});
+
+        // Assert - Should not throw/crash
+        expect(() {
+          streamController.add(messageWithNull);
+        }, returnsNormally);
+
+        await Future.delayed(Duration(milliseconds: 50));
+        client.disconnect();
+      });
+
+      test('handles null data in unsubscription message - no crash', () async {
+        // Arrange
+        final client = createClient();
+        await client.connect();
+
+        // Act - Send unsubscription message with null data (would crash before fix)
+        final messageWithNull = jsonEncode({'event': 'pusher_internal:unsubscription_succeeded', 'data': null});
+
+        // Assert - Should not throw/crash
+        expect(() {
+          streamController.add(messageWithNull);
+        }, returnsNormally);
+
+        await Future.delayed(Duration(milliseconds: 50));
+        client.disconnect();
+      });
+
+      test('handles non-String data field gracefully - no crash', () async {
+        // Arrange
+        final client = createClient();
+        await client.connect();
+
+        // Act - Send message with non-String data (Map instead of String) (would crash before fix)
+        final messageWithMapData = jsonEncode({
+          'event': 'pusher:connection_established',
+          'data': {'socket_id': 'test-id'}, // Map instead of String JSON
+        });
+
+        // Assert - Should not throw/crash
+        expect(() {
+          streamController.add(messageWithMapData);
+        }, returnsNormally);
+
+        await Future.delayed(Duration(milliseconds: 50));
+        client.disconnect();
+      });
+
+      test('handles null message gracefully - no crash', () async {
+        // Arrange
+        final client = createClient();
+        await client.connect();
+
+        // Act - Send null message (would crash before fix)
+        // Assert - Should not throw/crash
+        expect(() {
+          streamController.add(null);
+        }, returnsNormally);
+
+        await Future.delayed(Duration(milliseconds: 50));
+        client.disconnect();
+      });
+
+      test('handles invalid JSON gracefully - no crash', () async {
+        // Arrange
+        final client = createClient();
+        await client.connect();
+
+        // Act - Send invalid JSON (would crash before fix)
+        // Assert - Should not throw/crash
+        expect(() {
+          streamController.add('invalid json {');
+        }, returnsNormally);
+
+        await Future.delayed(Duration(milliseconds: 50));
+        client.disconnect();
+      });
+
+      test('handles valid messages correctly after null-safety fix', () async {
+        // Arrange
+        final client = createClient();
+        await client.connect();
+
+        // Act - Send valid message (should not crash)
+        const socketId = 'test-socket-id';
+        final validMessage = jsonEncode({
+          'event': 'pusher:connection_established',
+          'data': jsonEncode({'socket_id': socketId, 'activity_timeout': 30}),
+        });
+
+        // Assert - Should not crash
+        expect(() {
+          streamController.add(validMessage);
+        }, returnsNormally);
+
+        await Future.delayed(Duration(milliseconds: 50));
+        client.disconnect();
+      });
+
+      test('handles channel events with null channel name gracefully', () async {
+        // Arrange
+        final client = createClient();
+        await client.connect();
+
+        // Act - Send channel event with null channel name
+        final messageWithNullChannel = jsonEncode({'event': 'test-event', 'channel': null, 'data': 'test-data'});
+
+        // Assert - Should not crash
+        expect(() {
+          streamController.add(messageWithNullChannel);
+        }, returnsNormally);
+
+        await Future.delayed(Duration(milliseconds: 50));
+        // This is expected behavior - if channel is null, the event is ignored
+        expect(client.subscribedChannels, isEmpty);
+        client.disconnect();
+      });
+    });
   });
 }

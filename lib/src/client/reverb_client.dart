@@ -722,35 +722,75 @@ class ReverbClient {
   }
 
   void _handleMessage(dynamic message) {
-    final decodedMessage = jsonDecode(message as String);
+    // Safely handle message - ensure it's a String before decoding
+    if (message == null || message is! String) {
+      onError?.call(ConnectionException('Invalid message format: expected String, got ${message.runtimeType}'));
+      return;
+    }
+
+    Map<String, dynamic> decodedMessage;
+    try {
+      decodedMessage = jsonDecode(message) as Map<String, dynamic>;
+    } catch (e) {
+      onError?.call(ConnectionException('Failed to decode message: $e'));
+      return;
+    }
+
     final event = decodedMessage['event'];
     final data = decodedMessage['data'];
 
     if (event == 'pusher:connection_established') {
-      final connectionData = jsonDecode(data as String);
-      socketId = connectionData['socket_id'] as String?;
-      // Reset reconnection counter on successful connection
-      _reconnectAttempts = 0;
-      _setConnectionState(ConnectionState.connected);
-      onConnected?.call(socketId);
+      // Safely handle connection data - data may be null or not a String
+      if (data == null || data is! String) {
+        onError?.call(ConnectionException('Invalid connection data: expected String, got ${data?.runtimeType}'));
+        return;
+      }
+      try {
+        final connectionData = jsonDecode(data) as Map<String, dynamic>;
+        socketId = connectionData['socket_id'] as String?;
+        // Reset reconnection counter on successful connection
+        _reconnectAttempts = 0;
+        _setConnectionState(ConnectionState.connected);
+        onConnected?.call(socketId);
+      } catch (e) {
+        onError?.call(ConnectionException('Failed to decode connection data: $e'));
+      }
     } else if (event == 'pusher_internal:subscription_succeeded') {
-      final channelData = jsonDecode(data as String);
-      final channelName = channelData['channel'] as String?;
-      if (channelName != null) {
-        final channel = _channels[channelName];
-        // Pass subscription data for presence channels
-        if (channel is PresenceChannel) {
-          channel.handleSubscriptionSucceeded(channelData);
-        } else {
-          channel?.handleSubscriptionSucceeded();
+      // Safely handle subscription data - data may be null or not a String
+      if (data == null || data is! String) {
+        onError?.call(ConnectionException('Invalid subscription data: expected String, got ${data?.runtimeType}'));
+        return;
+      }
+      try {
+        final channelData = jsonDecode(data) as Map<String, dynamic>;
+        final channelName = channelData['channel'] as String?;
+        if (channelName != null) {
+          final channel = _channels[channelName];
+          // Pass subscription data for presence channels
+          if (channel is PresenceChannel) {
+            channel.handleSubscriptionSucceeded(channelData);
+          } else {
+            channel?.handleSubscriptionSucceeded();
+          }
         }
+      } catch (e) {
+        onError?.call(ConnectionException('Failed to decode subscription data: $e'));
       }
     } else if (event == 'pusher_internal:unsubscription_succeeded') {
-      final channelData = jsonDecode(data as String);
-      final channelName = channelData['channel'] as String?;
-      if (channelName != null) {
-        final channel = _channels[channelName];
-        channel?.handleUnsubscriptionSucceeded();
+      // Safely handle unsubscription data - data may be null or not a String
+      if (data == null || data is! String) {
+        onError?.call(ConnectionException('Invalid unsubscription data: expected String, got ${data?.runtimeType}'));
+        return;
+      }
+      try {
+        final channelData = jsonDecode(data) as Map<String, dynamic>;
+        final channelName = channelData['channel'] as String?;
+        if (channelName != null) {
+          final channel = _channels[channelName];
+          channel?.handleUnsubscriptionSucceeded();
+        }
+      } catch (e) {
+        onError?.call(ConnectionException('Failed to decode unsubscription data: $e'));
       }
     } else {
       // Handle channel events
