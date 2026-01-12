@@ -14,6 +14,7 @@ A Flutter/Dart client for Laravel Reverb, providing real-time WebSocket communic
 - 🛠️ **Custom Configuration** - Support for custom WebSocket paths and authentication
 - 📊 **Connection State Monitoring** - Real-time connection state updates via streams
 - ✅ **Well-Tested** - Over 90% test coverage with comprehensive unit and integration tests
+- 🛡️ **Robust Error Handling** - Graceful handling of null values and malformed messages prevents crashes
 
 ## Installation
 
@@ -21,7 +22,7 @@ Add this package to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pusher_reverb_flutter: ^0.0.3
+  pusher_reverb_flutter: ^0.0.4
 ```
 
 Then run:
@@ -760,6 +761,9 @@ Thrown when WebSocket connection fails. Includes an optional `cause` field for t
 - Unable to establish initial connection to the server
 - Network errors during connection attempts
 - Invalid connection configuration (empty host, invalid port)
+- Invalid or malformed WebSocket messages (null values, invalid JSON, etc.)
+
+**Note:** The package now gracefully handles null values and malformed messages by reporting them via `onError` callback instead of crashing, ensuring your app remains stable even when servers send unexpected message formats.
 
 ```dart
 try {
@@ -894,7 +898,7 @@ try {
 
 #### Handle Errors in Callbacks
 
-The `onError` callback receives typed exceptions:
+The `onError` callback receives typed exceptions. This includes errors from malformed WebSocket messages, null values, and invalid JSON - all handled gracefully without crashing your app:
 
 ```dart
 final client = ReverbClient.instance(
@@ -1084,6 +1088,7 @@ This package maintains over 90% test coverage, including:
 - Integration tests for client-channel interactions
 - Mock-based testing for WebSocket and HTTP dependencies
 - Stream testing with proper async patterns
+- Comprehensive null-safety tests for robust error handling
 
 ## 🤝 Contributing
 

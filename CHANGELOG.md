@@ -1,3 +1,31 @@
+## 0.0.4
+
+### Bug Fixes
+
+- **Fixed null-safety crash in WebSocket message handling**: Resolved critical runtime crash when processing WebSocket messages containing null values
+  - Added comprehensive null-safety checks in `_handleMessage` method to prevent `type 'Null' is not a subtype of type 'String'` errors
+  - Properly handles null message payloads, null data fields, and invalid JSON gracefully
+  - Errors are now reported via `onError` callback instead of causing app crashes
+  - Affects all message types: connection established, subscription succeeded, unsubscription succeeded, and channel events
+  - Maintains full backward compatibility - existing code continues to work without changes
+
+### Testing
+
+- **Added comprehensive null-safety test coverage**: 8 new unit tests covering null value scenarios
+  - Tests for null data in connection messages
+  - Tests for null data in subscription/unsubscription messages
+  - Tests for non-String data types
+  - Tests for null messages and invalid JSON
+  - All 267 tests passing (259 existing + 8 new)
+
+### Technical Improvements
+
+- **Enhanced error handling**: Improved robustness of WebSocket message processing
+  - Added type validation before JSON decoding
+  - Proper error reporting for malformed messages
+  - Graceful degradation when encountering unexpected message formats
+  - Better error messages for debugging connection issues
+
 ## 0.0.3
 
 ### New Features
